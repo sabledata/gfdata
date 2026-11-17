@@ -143,9 +143,15 @@ WHERE SM.FE_PARENT_EVENT_ID IS NULL
             (11, 42,  3), -- Miller
             (11, 42,  2)  -- Morton
         ) AS SEA (major_code, minor_code, locality_code)
-        WHERE TRY_CONVERT(int, SM.MAJOR_STAT_AREA_CODE) = SEA.major_code
-          AND TRY_CONVERT(int, SM.MINOR_STAT_AREA_CODE) = SEA.minor_code
-          AND TRY_CONVERT(int, SM.LOCALITY_CODE) = SEA.locality_code
+       WHERE LTRIM(RTRIM(SM.MAJOR_STAT_AREA_CODE)) IN (
+        CAST(SEA.major_code AS varchar(2)),
+        RIGHT('0' + CAST(SEA.major_code AS varchar(2)), 2)
+      )
+  AND LTRIM(RTRIM(SM.MINOR_STAT_AREA_CODE)) IN (
+        CAST(SEA.minor_code AS varchar(2)),
+        RIGHT('0' + CAST(SEA.minor_code AS varchar(2)), 2)
+      )
+  AND SM.LOCALITY_CODE = SEA.locality_code
       )
     )
   )
