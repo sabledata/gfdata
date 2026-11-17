@@ -31,6 +31,9 @@ SELECT TRIP_START_DATE,
   CASE WHEN SPECIMEN_COLLECTED_IND = 'Y' OR SPECIMEN_COLLECTED_IND = 'y' THEN 1 ELSE 0 END AS AGE_SPECIMEN_COLLECTED,
   SPECIMEN_AGE AS AGE,
   AGEING_METHOD_CODE,
+  AGEING_METHOD_CODE,
+  SP.Morphometrics_Attribute_Code,
+  SP.Other_Value,
 	-- insert length type here
   ROUND_WEIGHT AS WEIGHT,
   SP.MATURITY_CODE,
@@ -101,12 +104,53 @@ FROM GFBioSQL.dbo.B21_Samples SM
 		FROM GFBioSQL.dbo.SPECIMEN_COLLECTED
 		WHERE COLLECTED_ATTRIBUTE_CODE BETWEEN 20 AND 25
 		GROUP BY SAMPLE_ID, SPECIMEN_ID, SPECIMEN_COLLECTED_IND) SC ON SP.SPECIMEN_ID = SC.SPECIMEN_ID
-WHERE SM.FE_PARENT_EVENT_ID IS NULL AND SM.TRIP_SUB_TYPE_CODE NOT IN (2, 3) AND
-  SM.SAMPLE_TYPE_CODE IN (1,2,6,7,8) AND
-  (SPECIES_CATEGORY_CODE IS NULL OR SPECIES_CATEGORY_CODE IN (0, 1, 3, 4, 5, 6)) AND
-  (SP.MATURITY_CODE <= MC.MATURITY_CONVENTION_MAXVALUE OR SP.MATURITY_CODE IS NULL)
+WHERE SM.FE_PARENT_EVENT_ID IS NULL
+  AND SM.TRIP_SUB_TYPE_CODE NOT IN (2, 3)
+  AND SM.SAMPLE_TYPE_CODE IN (1, 2, 6, 7, 8)
+  AND (
+    SPECIES_CATEGORY_CODE IS NULL
+    OR SPECIES_CATEGORY_CODE IN (0, 1, 3, 4, 5, 6)
+  )
+  AND (
+    SP.MATURITY_CODE <= MC.MATURITY_CONVENTION_MAXVALUE
+    OR SP.MATURITY_CODE IS NULL
+  )
+
+  -- Additional filters for sablefish only
+  AND (
+    SM.SPECIES_CODE <> '455'
+    OR (
+      SM.TRIP_SUB_TYPE_CODE IN (1, 4, 5)
+      AND SM.SAMPLE_TYPE_CODE IN (1, 2)
+
+      -- Exclude listed seamount locations for all years
+      AND NOT EXISTS (
+        SELECT 1
+        FROM (
+          VALUES
+            ( 9, 31, 10), -- Bowie/Hodgkins
+            ( 5, 11,  8), -- Dellwood
+            ( 4, 27,  5), -- Union
+            ( 3, 24, 12), -- Eickelberg/Warwick
+            (67, 67,  1), -- Cobb
+            (67, 67,  2), -- Brown Bear
+            ( 3, 24, 11), -- Heck
+            (10, 33,  6), -- Pratt
+            (10, 33,  7), -- Surveyor
+            (10, 40,  5), -- Cowie
+            (10, 40,  4), -- Murray
+            (11, 42,  1), -- Pathfinder
+            (10, 33,  8), -- Durgin
+            (11, 42,  3), -- Miller
+            (11, 42,  2)  -- Morton
+        ) AS SEA (major_code, minor_code, locality_code)
+        WHERE TRY_CONVERT(int, SM.MAJOR_STAT_AREA_CODE) = SEA.major_code
+          AND TRY_CONVERT(int, SM.MINOR_STAT_AREA_CODE) = SEA.minor_code
+          AND TRY_CONVERT(int, SM.LOCALITY_CODE) = SEA.locality_code
+      )
+    )
+  )
 -- insert species here
 -- insert major here
 ORDER BY SAMPLING_DESC,
 TRIP_START_DATE
-
